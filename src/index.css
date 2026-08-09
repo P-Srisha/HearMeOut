@@ -17,6 +17,10 @@ body {
 
 .app {
 	min-height: 100vh;
+	max-width: 1400px;
+
+	margin: auto;
+	padding: 40px;
 
 	display: flex;
 	flex-direction: column;
@@ -50,4 +54,81 @@ button {
 
 button:hover {
 	background: #1ed760;
+}
+
+.playlist-grid {
+	width: 100%;
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+	gap: 25px;
+	margin-top: 30px;
+}
+
+.playlist-card {
+	background: #202020;
+	border-radius: 16px;
+	overflow: hidden;
+	cursor: pointer;
+	transition: transform 0.25s ease,
+				box-shadow 0.25s ease;
+}
+
+.playlist-card:hover {
+	transform: translateY(-6px);
+	box-shadow: 0 0 18px rgba(198, 234, 215, 0.20),
+				0 0 45px rgba(198, 234, 215, 0.15);
+	/* box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35),
+				0 0 0 1px rgba(29, 185, 84, 0.35),
+				0 0 15px rgba(29, 185, 84, 0.15); */
+}
+
+.playlist-image {
+	position: relative;
+}
+
+.playlist-image img {
+	width: 100%;
+	aspect-ratio: 1;
+	object-fit: cover;
+	display: block;
+}
+
+.playlist-card h3 {
+	margin: 15px 15px 6px;
+	font-size: 18px;
+}
+
+.playlist-card p {
+	margin: 0 15px 18px;
+	opacity: .7;
+}
+
+.overlay {
+	position: absolute;
+	inset: 0;
+	background: rgba(0, 0, 0, .45);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	opacity: 0;
+	transition: opacity .25s ease;
+
+	font-size: 60px;
+	color: white;
+}
+
+.play-button {
+	opacity: 0;
+	transform: scale(0.75);
+	transition: opacity .25s ease,
+				transform 0.25s ease;
+}
+
+.playlist-card:hover .overlay {
+	opacity: 1;
+}
+
+.playlist-card:hover .play-button {
+	opacity: 1;
+	transform: scale(1);
 }

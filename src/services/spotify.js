@@ -15,19 +15,20 @@ function base64UrlEncode(bytes) {
 
     return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
 }
+
 function generateCodeVerifier() {
     const bytes = new Uint8Array(32);
     crypto.getRandomValues(bytes);
-    
+
     return base64UrlEncode(bytes);
 }
 
 async function generateCodeChallenge(verifier) {
     const data = new TextEncoder().encode(verifier);
-    
+
     const hash = await crypto.subtle.digest('SHA-256', data);
     const hashBytes = new Uint8Array(hash);
-    
+
     return base64UrlEncode(hashBytes);
 }
 
@@ -55,4 +56,74 @@ function logout() {
 }
 
 
-export { CLIENT_ID, REDIRECT_URI, SCOPES, login, logout };
+
+// Spotify Playlist retrieval
+async function getProfile(token) {
+    const response = await fetch("https://api.spotify.com/v1/me",
+        {
+            method: "GET",
+            headers: {
+                "Authorization": `Bearer ${token}`,
+            },
+        }
+    );
+
+    if (!response.ok) {
+        throw new Error(`Spotify returned ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+}
+
+async function getPlaylists(token) {
+    let allPlaylists = [];
+    let url = "https://api.spotify.com/v1/me/playlists?limit=50";
+
+    while (url) {
+        const response = await fetch(url,
+            {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                },
+            },
+        );
+
+        if (!response.ok) {
+            throw new Error(`Spotify returned ${response.status}`);
+        }
+
+        const data = await response.json();
+        allPlaylists = [...allPlaylists, ...data.items];
+        url = data.next;
+    }
+    return allPlaylists;
+}
+
+async function getTracks(playlistId, token) {
+    try {
+        const response = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/items`,
+            {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                },
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(`Spotify returned ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data.items;
+    }
+    catch (error) {
+        console.log("Could not get tracks:", error);
+        return null;
+    }
+}
+
+
+export { CLIENT_ID, REDIRECT_URI, SCOPES, login, logout, getProfile, getPlaylists, getTracks };

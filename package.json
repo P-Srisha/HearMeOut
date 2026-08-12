@@ -5,11 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "server": "node server/server.js",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "express": "^5.2.1",
     "fast-average-color": "^9.5.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

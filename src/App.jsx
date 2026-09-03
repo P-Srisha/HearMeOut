@@ -2,20 +2,86 @@ import { useEffect, useState, useRef } from "react";
 import "./index.css"
 import { login, logout, getProfile, getPlaylists, getTracks } from "./services/spotify";
 import { getRandomTrack } from "./game/gameLogic";
-// import { FastAverageColor } from "fast-average-color";
 
-// const fac = new FastAverageColor();
+import LoginScreen from "./components/LoginScreen";
+import Header from "./components/Header";
+import PlaylistGrid from "./components/PlaylistGrid";
+import GameScreen from "./components/GameScreen";
 
 function App() {
 	const [profile, setProfile] = useState(null);
 	const [playlists, setPlaylists] = useState([]);
 	const [selectedPlaylist, setSelectedPlaylist] = useState(null);
-	const [tracks, setTracks] = useState(null);
+	const [tracks, setTracks] = useState([]);
 	const [selectedTrack, setSelectedTrack] = useState(null);
 	const audioRef = useRef(null);
-	const [previewUrl, setPreviewUrl] = useState(null);
-	// const [themeColor, setThemeColor] = useState(null);
+	const [previewUrl, setPreviewUrl] = useState(0);
 
+	const [currentView, setCurrentView] = useState("playlists");
+	const [isPlaying, setIsPlaying] = useState(false);
+	const [currentTime, setCurrentTime] = useState(0);
+	const [roundStatus, setRoundStatus] = useState("playing");
+
+	const REVEAL_TIMES = [0.1, 0.5, 2, 4, 8, 15, 30];
+	const [currentRevealIndex, setCurrentRevealIndex] = useState(0);
+
+
+	const togglePlayPause = async () => {
+		if (!audioRef.current) return;
+
+		if (audioRef.current.paused) {
+			audioRef.current.currentTime = 0;
+			setCurrentTime(0);
+			await audioRef.current.play();
+			setIsPlaying(true);
+		}
+		else {
+			audioRef.current.pause();
+			setIsPlaying(false);
+		}
+	}
+
+	const handleTimeUpdate = () => {
+		if (!audioRef.current) return;
+
+		const time = audioRef.current.currentTime;
+		setCurrentTime(time);
+		const revealTime = REVEAL_TIMES[currentRevealIndex];
+		
+		if (time >= revealTime) {
+			audioRef.current.pause();
+			audioRef.current.currentTime = 0;
+			setCurrentTime(0);
+			setIsPlaying(false);
+
+			if (currentRevealIndex === REVEAL_TIMES.length - 1)
+				setRoundStatus("timeout");
+		}
+	}
+
+	const handleAudioEnded = () => {
+		setIsPlaying(false);
+
+		if (currentRevealIndex === REVEAL_TIMES.length - 1) {
+			setCurrentTime(0);
+			setRoundStatus("timeout");
+		}
+	};
+
+	const skipReveal = () => {
+		if (currentRevealIndex < REVEAL_TIMES.length - 1) {
+			setCurrentRevealIndex(currentRevealIndex + 1);
+		}
+		else {
+			if (audioRef.current) {
+				audioRef.current.pause();
+				audioRef.current.currentTime = 0;
+			}
+			setIsPlaying(false);
+			setCurrentTime(0);
+			setRoundStatus("timeout");
+		}
+	}
 
 	function getPlaylistImage(playlist) {
 		if (playlist.name.startsWith("ql") && playlist.name.endsWith(" copy")) {
@@ -35,7 +101,17 @@ function App() {
 	
 	async function selectPlaylist(playlist) {
 		const token = localStorage.getItem("access_token");
+	
+		if (audioRef.current) {
+			audioRef.current.pause();
+			audioRef.current.currentTime = 0;
+		}
+		setIsPlaying(false);
+		setCurrentRevealIndex(0);
+
 		setSelectedPlaylist(playlist);
+		setCurrentView("game");
+		setRoundStatus("playing");
 
 		const playlistTracks = await getTracks(playlist.id, token);
 
@@ -80,63 +156,113 @@ function App() {
 		}
 	}, []);
 
-	// useEffect(() => {
-	// 	console.log(playlists);
-	// }, [playlists]);
+	const handleGuess = async (guessedTrack) => {
+		if (!selectedTrack) return false;
+		if (guessedTrack.id === selectedTrack.id) {
+			console.log("Correct");
 
-	useEffect(() => {
-		if (previewUrl && audioRef.current) {
-			audioRef.current.play();
+			if (audioRef.current) {
+				audioRef.current.pause();
+				audioRef.current.currentTime = 0;
+			}
+
+			setIsPlaying(false);
+			setCurrentTime(0);
+			setRoundStatus("correct");
+
+			return true;
 		}
-	}, [previewUrl]);
+		console.log("Wrong");
+		
+		if (currentRevealIndex === REVEAL_TIMES.length - 1) {
+			if (audioRef.current) {
+				audioRef.current.pause();
+				audioRef.current.currentTime = 0;
+			}
+			setIsPlaying(false);
+			setCurrentTime(0);
+			setRoundStatus("timeout");
 
+			return false;
+		}
+		setCurrentRevealIndex((current) => current + 1);
+		return false;
+	}
+
+	const newSong = async () => {
+		if (!tracks || tracks.length === 0) return;
+
+		if (audioRef.current) {
+			audioRef.current.pause();
+			audioRef.current.currentTime = 0;
+		}
+
+		setIsPlaying(false);
+		setCurrentTime(0);
+		setCurrentRevealIndex(0);
+		setRoundStatus("playing");
+
+		const result = await getRandomTrack(tracks);
+
+		if (!result) {
+			console.log("No playable tracks found.");
+			return;
+		}
+
+		setSelectedTrack(result.track);
+		setPreviewUrl(result.previewUrl);
+	}
 
 	return (
 		<div className="app">
-			<h1>HearMeOut</h1>
-
-			<p>Can you recognise your own playlists?</p>
-
-			{profile ? (
-				<>
-					<h2>Welcome back, {profile.display_name}!</h2>
-					<p>Number of playlists: {playlists.length}</p>
-
-					<div className="playlist-grid">
-						{playlists.map((playlist) => (						
-							<div className="playlist-card" key={playlist.id} onClick={() => selectPlaylist(playlist)}>
-								<div className="playlist-image">
-									<img
-										src={getPlaylistImage(playlist)}
-										alt={playlist.name}
-									/>
-
-									<div className="overlay">
-										<div className="play-button"
-											 onClick={(e) => {
-												e.stopPropagation();
-												selectPlaylist(playlist);
-											 }}>
-											▶
-										</div>
-									</div>
-								</div>
-								<h3>{playlist.name}</h3>
-								<p>{playlist.items.total} songs</p>
-							</div>
-						))}
-					</div>
-
-					<audio ref={audioRef} src={previewUrl}/>
-
-					<button onClick={logout}>
-						Logout
-					</button>
-				</>
+			{!profile ? (
+				<LoginScreen onLogin={login} />
 			) : (
-				<button onClick={login}>
-					Login with Spotify
-				</button>
+				<>
+					<Header 
+						profile={profile} 
+						onLogout={logout}
+					/>
+
+					{currentView === "playlists" && (
+						<>
+							<h2>Welcome back, {profile.display_name}!</h2>
+
+							<p>Number of playlists: {playlists.length}</p>
+
+							<PlaylistGrid
+								playlists={playlists}
+								getPlaylistImage={getPlaylistImage}
+								onSelectPlaylist={selectPlaylist}
+							/>
+						</>	
+					)}
+
+					{currentView === "game" && selectedPlaylist && (
+						<GameScreen 
+							playlist={selectedPlaylist}
+							getPlaylistImage={getPlaylistImage}
+							onBack={() => setCurrentView("playlists")}
+							onPlayPause={togglePlayPause}
+							isPlaying={isPlaying}
+							currentTime={currentTime}
+							currentRevealIndex={currentRevealIndex}
+							onSkip={skipReveal}
+							tracks={tracks}
+							onGuess={handleGuess}
+							roundStatus={roundStatus}
+							onNewSong={newSong}
+							selectedTrack={selectedTrack}
+						/>
+					)}
+
+					<audio 
+						ref={audioRef}
+						src={previewUrl}
+						onTimeUpdate={handleTimeUpdate}
+						onEnded={handleAudioEnded}
+					/>
+				</>
 			)}
 		</div>
 	);

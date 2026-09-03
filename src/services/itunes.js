@@ -29,18 +29,26 @@ async function getPreviewUrl(track) {
         const itunesArtist = normalize(result.artistName);
         const itunesTitle = normalize(result.trackName);
 
-        const artistMatches = spotifyArtists.some
+        const artistMatches = spotifyArtists.every
             ((artist) =>
                 artist === itunesArtist ||
                 itunesArtist.includes(artist) ||
                 artist.includes(itunesArtist)
             );
 
+        const hasExtraArtist = spotifyArtists.length === 1 && itunesArtist !== spotifyArtists[0];
+
+        const alternateVersion = itunesTitle.includes("remix") || 
+                                 itunesTitle.includes("acoustic") ||
+                                 itunesTitle.includes("instrumental") || 
+                                 itunesTitle.includes("live") ||
+                                 itunesTitle.includes("radio edit");
+
         const titleMatches = spotifyTitle === itunesTitle ||
             itunesTitle.startsWith(spotifyTitle + " feat") ||
             itunesTitle.startsWith(spotifyTitle + " featuring");
 
-        return artistMatches && titleMatches;
+        return artistMatches && !hasExtraArtist && titleMatches && !alternateVersion;
     });
 
     if (validResults.length === 0) {

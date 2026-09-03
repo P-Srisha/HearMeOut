@@ -110,7 +110,7 @@ function GameScreen({
                     <div className="timer-track">
                         <div className="timer-progress"
                             style={{
-                                width: `${Math.max(currentTime > 0 ? 5 : 0, Math.min((currentTime / REVEAL_TIMES[currentRevealIndex]) * 100, 100))}%`
+                                width: `${Math.max(currentTime > 0 ? 5 : 0, Math.min((currentTime / 30) * 100, 100))}%`
                             }}
                         />
                     </div>
